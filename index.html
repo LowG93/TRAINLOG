@@ -417,37 +417,36 @@ function splitCSVLine(line) {
 // CARGA PRINCIPAL
 // ═══════════════════════════════════════════
 async function fetchCSV(url) {
-  // 1. Intento con CodeTabs (Proxy para programadores, rara vez bloqueado por operadoras)
-  try {
-    const proxyA = 'https://api.codetabs.com/v1/proxy?quest=';
-    const rA = await fetch(proxyA + encodeURIComponent(url));
-    if (rA.ok) {
-      const txt = await rA.text();
-      // Si nos devuelve nuestro CSV y no una página de error de Google, lo damos por bueno
-      if (!txt.trim().toLowerCase().startsWith('<!doctype') && !txt.trim().toLowerCase().startsWith('<html')) {
-        return txt;
-      }
-    }
-  } catch (e) { 
-    console.log("CodeTabs bloqueado o caído."); 
+  function isCSV(txt) {
+    const t = txt.trim().toLowerCase();
+    return !t.startsWith('<!doctype') && !t.startsWith('<html') && txt.trim().length > 0;
   }
 
-  // 2. Intento con AllOrigins (Usando su API JSON para saltar el bloqueo de Google)
+  // 1. Fetch directo — funciona desde GitHub Pages
   try {
-    const proxyB = 'https://api.allorigins.win/get?url=';
-    const rB = await fetch(proxyB + encodeURIComponent(url));
-    if (rB.ok) {
-      const data = await rB.json();
-      if (data.contents && !data.contents.trim().toLowerCase().startsWith('<!doctype') && !data.contents.trim().toLowerCase().startsWith('<html')) {
-        return data.contents;
-      }
-    }
-  } catch (e) { 
-    console.log("AllOrigins bloqueado o caído."); 
-  }
+    const r = await fetch(url, { mode: 'cors' });
+    if (r.ok) { const txt = await r.text(); if (isCSV(txt)) return txt; }
+  } catch(e) { console.log('Fetch directo bloqueado, probando proxies...'); }
 
-  // Si llegamos aquí, no hay escapatoria por proxy público
-  throw new Error('Tu conexión a internet tiene un filtro muy estricto que bloquea los puentes públicos.');
+  // 2. AllOrigins
+  try {
+    const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url));
+    if (r.ok) { const d = await r.json(); if (d.contents && isCSV(d.contents)) return d.contents; }
+  } catch(e) { console.log('AllOrigins caido.'); }
+
+  // 3. corsproxy.io
+  try {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url));
+    if (r.ok) { const txt = await r.text(); if (isCSV(txt)) return txt; }
+  } catch(e) { console.log('corsproxy.io caido.'); }
+
+  // 4. CodeTabs
+  try {
+    const r = await fetch('https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(url));
+    if (r.ok) { const txt = await r.text(); if (isCSV(txt)) return txt; }
+  } catch(e) { console.log('CodeTabs caido.'); }
+
+  throw new Error('No se pudo cargar el CSV tras 4 intentos.');
 }
 
 // ═══════════════════════════════════════════
