@@ -274,18 +274,13 @@ tr:hover td{background:rgba(255,255,255,.02)}
 </div>
 
 <script>
-// ═══════════════════════════════════════════
-// URLs CSV DE TU GOOGLE SHEETS
-// ═══════════════════════════════════════════
-// ═══════════════════════════════════════════
-// ESTADO GLOBAL
-// ═══════════════════════════════════════════
+// ── ESTADO GLOBAL ──────────────────────────
 let DB = {run:[], walk:[], workout:[], swim:[], padel:[]};
-let period = 7;
-let sport = 'all';
-let CH = {};
+let period = 7, sport = 'all', CH = {};
 const SC = {run:'#ff5e1a',walk:'#00d4c8',workout:'#9b6dff',swim:'#00c896',padel:'#ff4d72'};
 const SE = {run:'🏃',walk:'🚶',workout:'💪',swim:'🏊',padel:'🎾'};
+
+// ── URLs CSV ────────────────────────────────
 const URLS = {
   run:     'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=0&single=true&output=csv',
   walk:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=1378011994&single=true&output=csv',
