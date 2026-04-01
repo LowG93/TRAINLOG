@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRAINLOG · Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Sora:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  --bg:#080810;--s1:#0f0f1a;--s2:#16162a;--s3:#1e1e32;
+  --border:rgba(255,255,255,0.07);--text:#eeeef5;--muted:#5a5a78;
+  --run:#ff5e1a;--walk:#00d4c8;--workout:#9b6dff;--swim:#00c896;--padel:#ff4d72;
+  --gold:#f5c842;--r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:'Sora',sans-serif;font-weight:300;display:flex;flex-direction:column;min-height:100vh}
+
+/* HEADER */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid var(--border);background:var(--s1);flex-shrink:0;flex-wrap:wrap;gap:10px}
+.brand{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:4px;background:linear-gradient(135deg,#fff 30%,var(--muted));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.topbar-right{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.dot{width:7px;height:7px;border-radius:50%;background:#22c55e;display:inline-block;animation:blink 2.5s infinite}
+@keyframes blink{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(34,197,94,.4)}50%{opacity:.7;box-shadow:0 0 0 4px rgba(34,197,94,0)}}
+.sync-info{font-size:.68rem;color:var(--muted)}
+.refresh-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:6px 16px;border-radius:40px;font-family:'Sora',sans-serif;font-size:.7rem;cursor:pointer;transition:all .2s}
+.refresh-btn:hover{border-color:rgba(255,255,255,.25);color:var(--text)}
+
+/* ERROR */
+.error-bar{background:rgba(248,113,113,.1);border:1px solid rgba(248,113,113,.25);border-radius:8px;padding:10px 16px;margin:12px 28px;font-size:.74rem;color:#fca5a5;display:none}
+
+/* FILTERS */
+.filters{display:flex;gap:10px;padding:12px 28px;flex-wrap:wrap;align-items:center;border-bottom:1px solid var(--border);flex-shrink:0}
+.flbl{font-size:.6rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+.pills{display:flex;gap:5px;flex-wrap:wrap}
+.pill{padding:5px 14px;border-radius:40px;border:1px solid var(--border);background:var(--s1);color:var(--muted);font-family:'Sora',sans-serif;font-size:.72rem;cursor:pointer;transition:all .2s;white-space:nowrap}
+.pill:hover{border-color:rgba(255,255,255,.2);color:var(--text)}
+.pill.ap{background:var(--s3);border-color:rgba(255,255,255,.2);color:var(--text)}
+.pill[data-sport="all"].as{background:var(--text);border-color:var(--text);color:#000}
+.pill[data-sport="run"].as{background:var(--run);border-color:var(--run);color:#fff}
+.pill[data-sport="walk"].as{background:var(--walk);border-color:var(--walk);color:#000}
+.pill[data-sport="workout"].as{background:var(--workout);border-color:var(--workout);color:#fff}
+.pill[data-sport="swim"].as{background:var(--swim);border-color:var(--swim);color:#000}
+.pill[data-sport="padel"].as{background:var(--padel);border-color:var(--padel);color:#fff}
+.fsep{width:1px;height:20px;background:var(--border)}
+
+/* MAIN */
+.main{flex:1;padding:20px 28px 40px;display:flex;flex-direction:column;gap:16px;overflow-y:auto}
+
+/* LOADING */
+.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;padding:60px}
+.loader{width:42px;height:42px;border:3px solid var(--s3);border-top-color:var(--run);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loader-txt{font-size:.72rem;letter-spacing:2px;text-transform:uppercase;color:var(--muted)}
+
+/* KPI */
+.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:11px}
+.kpi{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:15px 17px;position:relative;overflow:hidden;transition:transform .2s,border-color .2s}
+.kpi:hover{transform:translateY(-2px);border-color:rgba(255,255,255,.12)}
+.kpi-ac{position:absolute;top:0;left:0;width:3px;height:100%;border-radius:var(--r) 0 0 var(--r)}
+.kpi-lbl{font-size:.58rem;text-transform:uppercase;letter-spacing:2px;color:var(--muted);margin-bottom:7px}
+.kpi-val{font-family:'Bebas Neue',sans-serif;font-size:2rem;line-height:1}
+.kpi-unit{font-family:'Sora',sans-serif;font-size:.7rem;color:var(--muted);margin-left:2px}
+.kpi-sub{font-size:.62rem;color:var(--muted);margin-top:5px}
+
+/* CARDS */
+.g2{display:grid;grid-template-columns:2fr 1fr;gap:14px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+.g22{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{background:var(--s1);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;transition:border-color .2s}
+.card:hover{border-color:rgba(255,255,255,.1)}
+.ctitle{font-size:.75rem;font-weight:500;color:var(--text);margin-bottom:14px}
+canvas{max-width:100%}
+
+/* RECORDS */
+.rec-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.rec{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:13px 15px;position:relative}
+.rec-lbl{font-size:.58rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:7px}
+.rec-val{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;line-height:1}
+.rec-sub{font-size:.62rem;color:var(--muted);margin-top:4px}
+.rec-ico{position:absolute;top:10px;right:12px;opacity:.5}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse}
+th{font-size:.58rem;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);text-align:left;padding:0 8px 9px;border-bottom:1px solid var(--border)}
+td{font-size:.73rem;padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+
+/* PANELS */
+.panel{display:none;flex-direction:column;gap:16px}
+.panel.active{display:flex}
+
+/* HEATMAP */
+.hm-wrap{overflow-x:auto;padding-bottom:4px}
+.hm-months{display:flex;font-size:.58rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:5px}
+.hm-grid{display:grid;grid-template-rows:repeat(7,13px);grid-auto-flow:column;gap:3px;width:max-content}
+.hm-cell{width:13px;height:13px;border-radius:3px;cursor:default;transition:transform .12s}
+.hm-cell:hover{transform:scale(1.4);position:relative;z-index:5}
+.hm-0{background:var(--s2)}.hm-1{background:rgba(255,94,26,.2)}.hm-2{background:rgba(255,94,26,.45)}.hm-3{background:rgba(255,94,26,.7)}.hm-4{background:var(--run)}
+
+/* STREAK */
+.streak-val{font-family:'Bebas Neue',sans-serif;font-size:3.2rem;line-height:1;color:var(--run)}
+.sdays{display:flex;gap:3px;flex-wrap:wrap;margin-top:9px}
+.sd{width:10px;height:10px;border-radius:2px;background:var(--s2);border:1px solid var(--border)}
+.sd.on{background:var(--run);border-color:var(--run)}.sd.today{background:var(--gold);border-color:var(--gold)}
+
+/* TIME BARS */
+.tbars{display:flex;flex-direction:column;gap:11px}
+.tbar-row{display:flex;flex-direction:column;gap:4px}
+.tbar-lbl{display:flex;justify-content:space-between;font-size:.72rem}
+.tbar-track{height:5px;background:var(--s3);border-radius:3px;overflow:hidden}
+.tbar-fill{height:100%;border-radius:3px;transition:width .9s cubic-bezier(.4,0,.2,1)}
+
+/* RECENT */
+.ri{display:grid;grid-template-columns:28px 1fr auto;gap:9px;align-items:center;padding:7px 9px;border-radius:8px;background:var(--s2);margin-bottom:6px;border:1px solid var(--border)}
+.ri-ico{width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:.85rem}
+.ri-name{font-size:.74rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ri-date{font-size:.62rem;color:var(--muted)}
+.ri-dist{font-family:'Bebas Neue',sans-serif;font-size:1rem;text-align:right}
+.ri-time{font-size:.62rem;color:var(--muted);text-align:right}
+
+/* RESPONSIVE */
+@media(max-width:900px){
+  .g2,.g3,.g22{grid-template-columns:1fr}
+  .rec-grid{grid-template-columns:1fr 1fr}
+  .topbar,.filters,.main{padding-left:14px;padding-right:14px}
+}
+@media(max-width:480px){
+  .rec-grid{grid-template-columns:1fr}
+  .kpi-strip{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="topbar">
+  <span class="brand">TRAINLOG</span>
+  <div class="topbar-right">
+    <span class="dot"></span>
+    <span class="sync-info" id="sync-info">Conectando con Sheets...</span>
+    <button class="refresh-btn" onclick="loadData()">↻ Actualizar</button>
+  </div>
+</div>
+
+<div class="error-bar" id="error-bar"></div>
+
+<!-- FILTERS -->
+<div class="filters">
+  <span class="flbl">Período</span>
+  <div class="pills" id="pp">
+    <button class="pill ap" data-period="7">7D</button>
+    <button class="pill" data-period="30">30D</button>
+    <button class="pill" data-period="90">3M</button>
+    <button class="pill" data-period="180">6M</button>
+    <button class="pill" data-period="365">1A</button>
+  </div>
+  <div class="fsep"></div>
+  <span class="flbl">Deporte</span>
+  <div class="pills" id="sp">
+    <button class="pill as" data-sport="all">Todos</button>
+    <button class="pill" data-sport="run">🏃 Run</button>
+    <button class="pill" data-sport="walk">🚶 Walk</button>
+    <button class="pill" data-sport="workout">💪 Workout</button>
+    <button class="pill" data-sport="swim">🏊 Swim</button>
+    <button class="pill" data-sport="padel">🎾 Pádel</button>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="main" id="main">
+
+  <!-- LOADING -->
+  <div class="loading-screen" id="loading">
+    <div class="loader"></div>
+    <div class="loader-txt">Cargando actividades...</div>
+  </div>
+
+  <!-- DASHBOARD -->
+  <div id="dash" style="display:none;flex-direction:column;gap:16px">
+
+    <div class="kpi-strip" id="kpi-global"></div>
+
+    <!-- ALL -->
+    <div class="panel active" id="panel-all">
+      <div class="g2">
+        <div class="card"><div class="ctitle">Volumen semanal</div><canvas id="ch-vol" height="120"></canvas></div>
+        <div class="card"><div class="ctitle">Distribución por deporte</div><canvas id="ch-donut" height="170"></canvas></div>
+      </div>
+      <div class="card"><div class="ctitle">Progresión acumulada de distancia</div><canvas id="ch-prog" height="72"></canvas></div>
+      <div class="g3">
+        <div class="card"><div class="ctitle">⚡ Actividades recientes</div><div id="recent-list"></div></div>
+        <div class="card"><div class="ctitle">📊 Tiempo por deporte</div><div class="tbars" id="tbars"></div></div>
+        <div class="card">
+          <div class="ctitle">🗓 Racha activa</div>
+          <div class="streak-val" id="streak-val">0</div>
+          <div style="font-size:.64rem;color:var(--muted);margin:4px 0 10px">días consecutivos</div>
+          <div class="sdays" id="sdays"></div>
+          <div style="font-size:.6rem;color:var(--muted);margin-top:7px"><span style="color:var(--run)">■</span> activo &nbsp;<span style="color:var(--gold)">■</span> hoy</div>
+        </div>
+      </div>
+      <div class="card"><div class="ctitle">🔥 Mapa anual de actividad</div><div class="hm-wrap"><div class="hm-months" id="hm-m"></div><div class="hm-grid" id="hm-g"></div></div></div>
+    </div>
+
+    <!-- RUN -->
+    <div class="panel" id="panel-run">
+      <div class="rec-grid" id="run-recs"></div>
+      <div class="kpi-strip" id="kpi-run"></div>
+      <div class="g22">
+        <div class="card"><div class="ctitle">Ritmo por sesión (min/km)</div><canvas id="ch-rp" height="130"></canvas></div>
+        <div class="card"><div class="ctitle">Distancia por sesión (km)</div><canvas id="ch-rd" height="130"></canvas></div>
+      </div>
+      <div class="card"><div class="ctitle">Historial de carreras</div>
+        <table><thead><tr><th>Fecha</th><th>Nombre</th><th>Dist.</th><th>Tiempo</th><th>Ritmo</th><th>PPM</th><th>Desnivel</th><th>Kcal</th><th>Suffer</th></tr></thead>
+        <tbody id="run-tb"></tbody></table>
+      </div>
+    </div>
+
+    <!-- WALK -->
+    <div class="panel" id="panel-walk">
+      <div class="kpi-strip" id="kpi-walk"></div>
+      <div class="g22">
+        <div class="card"><div class="ctitle">Distancia por sesión (km)</div><canvas id="ch-wd" height="130"></canvas></div>
+        <div class="card"><div class="ctitle">Calorías acumuladas</div><canvas id="ch-wc" height="130"></canvas></div>
+      </div>
+      <div class="card"><div class="ctitle">Historial de caminatas</div>
+        <table><thead><tr><th>Fecha</th><th>Nombre</th><th>Dist.</th><th>Tiempo</th><th>Vel. media</th><th>PPM</th><th>Desnivel</th><th>Kcal</th></tr></thead>
+        <tbody id="walk-tb"></tbody></table>
+      </div>
+    </div>
+
+    <!-- WORKOUT -->
+    <div class="panel" id="panel-workout">
+      <div class="kpi-strip" id="kpi-workout"></div>
+      <div class="g22">
+        <div class="card"><div class="ctitle">Duración por sesión (min)</div><canvas id="ch-wod" height="130"></canvas></div>
+        <div class="card"><div class="ctitle">Suffer Score por sesión</div><canvas id="ch-wos" height="130"></canvas></div>
+      </div>
+      <div class="card"><div class="ctitle">Historial de entrenos</div>
+        <table><thead><tr><th>Fecha</th><th>Nombre</th><th>Duración</th><th>PPM media</th><th>PPM máx</th><th>Kcal</th><th>Suffer</th></tr></thead>
+        <tbody id="wo-tb"></tbody></table>
+      </div>
+    </div>
+
+    <!-- SWIM -->
+    <div class="panel" id="panel-swim">
+      <div class="kpi-strip" id="kpi-swim"></div>
+      <div class="g22">
+        <div class="card"><div class="ctitle">Distancia por sesión (m)</div><canvas id="ch-swd" height="130"></canvas></div>
+        <div class="card"><div class="ctitle">Ritmo de nado (min/100m)</div><canvas id="ch-swp" height="130"></canvas></div>
+      </div>
+      <div class="card"><div class="ctitle">Historial de natación</div>
+        <table><thead><tr><th>Fecha</th><th>Nombre</th><th>Dist. (m)</th><th>Tiempo</th><th>Ritmo</th><th>Brazadas/min</th><th>Kcal</th></tr></thead>
+        <tbody id="sw-tb"></tbody></table>
+      </div>
+    </div>
+
+    <!-- PADEL -->
+    <div class="panel" id="panel-padel">
+      <div class="kpi-strip" id="kpi-padel"></div>
+      <div class="g22">
+        <div class="card"><div class="ctitle">Duración de partidos (min)</div><canvas id="ch-pdd" height="130"></canvas></div>
+        <div class="card"><div class="ctitle">FC media por partido</div><canvas id="ch-pdh" height="130"></canvas></div>
+      </div>
+      <div class="card"><div class="ctitle">Historial de pádel</div>
+        <table><thead><tr><th>Fecha</th><th>Nombre</th><th>Duración</th><th>PPM media</th><th>PPM máx</th><th>Kcal</th><th>Suffer</th></tr></thead>
+        <tbody id="pd-tb"></tbody></table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// URLs CSV DE TU GOOGLE SHEETS
+// ═══════════════════════════════════════════
+// ═══════════════════════════════════════════
+// ESTADO GLOBAL
+// ═══════════════════════════════════════════
+let DB = {run:[], walk:[], workout:[], swim:[], padel:[]};
+let period = 7;
+let sport = 'all';
+let CH = {};
+const SC = {run:'#ff5e1a',walk:'#00d4c8',workout:'#9b6dff',swim:'#00c896',padel:'#ff4d72'};
+const SE = {run:'🏃',walk:'🚶',workout:'💪',swim:'🏊',padel:'🎾'};
+const URLS = {
+  run:     'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=0&single=true&output=csv',
+  walk:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=1378011994&single=true&output=csv',
+  workout: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=962317487&single=true&output=csv',
+  swim:    'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=914524001&single=true&output=csv',
+  padel:   'https://docs.google.com/spreadsheets/d/e/2PACX-1vS-sIExMIGlv1Dw3Vj3obPYUPbQkHo2A0zTReg6tE_VDfRh7qwVKRSAzQCWWHUhptPdpRkYUwg5GpQX/pub?gid=1121233703&single=true&output=csv',
+};
+
+async function loadData() {
+  document.getElementById('sync-info').textContent = 'Descargando datos...';
+  document.getElementById('error-bar').style.display = 'none';
+
+  const errors = [];
+  await Promise.all(Object.entries(URLS).map(async ([sport, url]) => {
+    try {
+      const text = await fetchCSV(url);
+      DB[sport] = normalizeAll({ [sport]: parseCSV(text) })[sport];
+    } catch(e) {
+      errors.push(sport);
+      console.error(sport, e);
+    }
+  }));
+
+  if (errors.length) {
+    const eb = document.getElementById('error-bar');
+    eb.style.display = 'block';
+    eb.textContent = '⚠️ No se pudieron cargar: ' + errors.join(', ') + '. Comprueba que las hojas están publicadas como CSV en Google Sheets.';
+  }
+
+  document.getElementById('sync-info').textContent = 'Actualizado ' + new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('dash').style.display = 'flex';
+  renderAll();
+}
+
+// ═══════════════════════════════════════════
+// NORMALIZADORES DE DATOS
+// ═══════════════════════════════════════════
+function pn(v){ 
+  if(v===undefined || v===null || v==='') return 0;
+  if(typeof v === 'number') return v;
+  let clean = v.toString().replace(/[^0-9,\.-]/g, '');
+  return parseFloat(clean.replace(',', '.')) || 0; 
+}
+
+function pd(v){
+  if(!v) return null;
+  let d = new Date(v);
+  if(!isNaN(d)) return d;
+  if(typeof v === 'string') {
+    let clean = v.replace(' at ', ' ');
+    d = new Date(clean);
+    if(!isNaN(d)) return d;
+  }
+  return null;
+}
+
+function normalizeAll(raw) {
+  const getCol = (row, names) => {
+    const keys = Object.keys(row);
+    for (let n of names) {
+      let k = keys.find(k => k.toLowerCase().includes(n.toLowerCase()));
+      if (k && row[k] !== undefined && row[k] !== '') return row[k];
+    }
+    return null;
+  };
+
+  return {
+    run: (raw.run||[]).map(r=>({
+      date:pd(getCol(r,['Fecha','Date'])), name:getCol(r,['Nombre','Name'])||'Run',
+      dist:pn(getCol(r,['Distancia','Distance'])), movTime:pn(getCol(r,['Tiempo en Movimiento','Moving Time'])),
+      totalTime:pn(getCol(r,['Tiempo Total','Total Time'])), paceAvg:getCol(r,['Ritmo Medio','Velocidad/Ritmo'])||'',
+      paceMax:getCol(r,['Ritmo Máximo','Max Pace'])||'', hrAvg:pn(getCol(r,['Pulsaciones Medias'])),
+      hrMax:pn(getCol(r,['Pulsaciones Máximas'])), cadence:pn(getCol(r,['Cadencia'])),
+      elevation:pn(getCol(r,['Desnivel'])), calories:pn(getCol(r,['Calorías','Calories'])),
+      suffer:pn(getCol(r,['Esfuerzo','Suffer'])), sport:'run'
+    })).filter(r=>r.date),
+    walk: (raw.walk||[]).map(r=>({
+      date:pd(getCol(r,['Fecha','Date'])), name:getCol(r,['Nombre','Name'])||'Walk',
+      dist:pn(getCol(r,['Distancia','Distance'])), movTime:pn(getCol(r,['Tiempo en Movimiento','Moving Time'])),
+      totalTime:pn(getCol(r,['Tiempo Total','Total Time'])), speedAvg:getCol(r,['Velocidad Media'])||'',
+      hrAvg:pn(getCol(r,['Pulsaciones Medias'])), hrMax:pn(getCol(r,['Pulsaciones Máximas'])),
+      elevation:pn(getCol(r,['Desnivel'])), calories:pn(getCol(r,['Calorías','Calories'])),
+      suffer:pn(getCol(r,['Esfuerzo','Suffer'])), sport:'walk'
+    })).filter(r=>r.date),
+    workout: (raw.workout||[]).map(r=>({
+      date:pd(getCol(r,['Fecha','Date'])), name:getCol(r,['Nombre','Name'])||'Workout',
+      movTime:pn(getCol(r,['Tiempo en Movimiento','Moving Time','Duración'])), totalTime:pn(getCol(r,['Tiempo Total','Total Time'])),
+      hrAvg:pn(getCol(r,['Pulsaciones Medias'])), hrMax:pn(getCol(r,['Pulsaciones Máximas'])),
+      calories:pn(getCol(r,['Calorías','Calories'])), suffer:pn(getCol(r,['Esfuerzo','Suffer'])),
+      dist:0, elevation:0, sport:'workout'
+    })).filter(r=>r.date),
+    swim: (raw.swim||[]).map(r=>({
+      date:pd(getCol(r,['Fecha','Date'])), name:getCol(r,['Nombre','Name'])||'Swim',
+      dist:pn(getCol(r,['Distancia','Distance'])), movTime:pn(getCol(r,['Tiempo en Movimiento','Moving Time'])),
+      paceAvg:getCol(r,['Ritmo Medio'])||'', hrAvg:pn(getCol(r,['Pulsaciones Medias'])),
+      hrMax:pn(getCol(r,['Pulsaciones Máximas'])), cadence:pn(getCol(r,['Brazadas','Cadencia'])),
+      calories:pn(getCol(r,['Calorías','Calories'])), suffer:pn(getCol(r,['Esfuerzo','Suffer'])),
+      totalTime:0, elevation:0, sport:'swim'
+    })).filter(r=>r.date),
+    padel: (raw.padel||[]).map(r=>({
+      date:pd(getCol(r,['Fecha','Date'])), name:getCol(r,['Nombre','Name'])||'Padel',
+      movTime:pn(getCol(r,['Tiempo en Movimiento','Moving Time'])), totalTime:pn(getCol(r,['Tiempo Total','Total Time'])),
+      hrAvg:pn(getCol(r,['Pulsaciones Medias'])), hrMax:pn(getCol(r,['Pulsaciones Máximas'])),
+      calories:pn(getCol(r,['Calorías','Calories'])), suffer:pn(getCol(r,['Esfuerzo','Suffer'])),
+      dist:0, elevation:0, sport:'padel'
+    })).filter(r=>r.date),
+  };
+}
+
+// ═══════════════════════════════════════════
+// CSV PARSER
+// ═══════════════════════════════════════════
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) return [];
+  const headers = splitCSVLine(lines[0]).map(h => h.trim());
+  return lines.slice(1).map(line => {
+    const vals = splitCSVLine(line);
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = (vals[i]||'').trim());
+    return obj;
+  }).filter(r => Object.values(r).some(v => v !== ''));
+}
+
+function splitCSVLine(line) {
+  const res=[]; let cur='', inQ=false;
+  for (let c of line) {
+    if (c==='"'){inQ=!inQ;continue;}
+    if (c===','&&!inQ){res.push(cur);cur='';}
+    else cur+=c;
+  }
+  res.push(cur);
+  return res;
+}
+
+// ═══════════════════════════════════════════
+// CARGA PRINCIPAL
+// ═══════════════════════════════════════════
+async function fetchCSV(url) {
+  function isCSV(txt) {
+    const t = txt.trim().toLowerCase();
+    return !t.startsWith('<!doctype') && !t.startsWith('<html') && txt.trim().length > 10;
+  }
+
+  // Google Sheets publicados redirigen a una URL diferente.
+  // Seguimos el redirect manualmente con fetch + redirect:'follow'
+  // que es lo que funciona de forma nativa desde GitHub Pages.
+  try {
+    const r = await fetch(url, { method: 'GET', redirect: 'follow' });
+    if (r.ok) {
+      const txt = await r.text();
+      if (isCSV(txt)) { console.log('✓ Directo OK'); return txt; }
+    }
+  } catch(e) { console.log('Directo falló:', e.message); }
+
+  // Fallback 1: AllOrigins (devuelve JSON con .contents)
+  try {
+    const r = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent(url), { redirect: 'follow' });
+    if (r.ok) {
+      const d = await r.json();
+      if (d.contents && isCSV(d.contents)) { console.log('✓ AllOrigins OK'); return d.contents; }
+    }
+  } catch(e) { console.log('AllOrigins falló:', e.message); }
+
+  // Fallback 2: corsproxy.io
+  try {
+    const r = await fetch('https://corsproxy.io/?' + encodeURIComponent(url), { redirect: 'follow' });
+    if (r.ok) {
+      const txt = await r.text();
+      if (isCSV(txt)) { console.log('✓ corsproxy OK'); return txt; }
+    }
+  } catch(e) { console.log('corsproxy falló:', e.message); }
+
+  // Fallback 3: thingproxy
+  try {
+    const r = await fetch('https://thingproxy.freeboard.io/fetch/' + url, { redirect: 'follow' });
+    if (r.ok) {
+      const txt = await r.text();
+      if (isCSV(txt)) { console.log('✓ thingproxy OK'); return txt; }
+    }
+  } catch(e) { console.log('thingproxy falló:', e.message); }
+
+  throw new Error('No se pudo cargar el CSV.');
+}
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function ft(m) { if(!m) return '–'; const h=Math.floor(m/60),s=Math.round(m%60); return h?`${h}h ${s}m`:`${s}m`; }
+function fd(d) { return d ? d.toLocaleDateString('es-ES',{day:'2-digit',month:'short',year:'2-digit'}) : '–'; }
+function co(d) { const x=new Date(); x.setDate(x.getDate()-d); return x; }
+function fp(arr,d) { return arr.filter(r=>r.date>=co(d)).sort((a,b)=>b.date-a.date); }
+function avg(arr,fn) { const v=arr.map(fn).filter(x=>x>0); return v.length?v.reduce((a,b)=>a+b)/v.length:0; }
+function sm(arr,fn) { return arr.reduce((s,r)=>s+fn(r),0); }
+function mx(arr,fn) { return arr.length?Math.max(...arr.map(fn)):0; }
+function dc(id) { if(CH[id]){CH[id].destroy();delete CH[id];} }
+function pm(s) { const m=s.match(/(\d+):(\d+)/); return m?+m[1]+(+m[2]/60):null; }
+function fp2(v) { if(!v) return '–'; const m=Math.floor(v),s=Math.round((v-m)*60); return `${m}:${String(s).padStart(2,'0')}`; }
+
+const baseOpts = (extra={}) => ({
+  responsive: true,
+  plugins: {legend:{display:false}},
+  scales: {
+    x: {grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5a5a78',font:{size:9},maxRotation:35}},
+    y: {grid:{color:'rgba(255,255,255,0.04)'}, ticks:{color:'#5a5a78',font:{size:10}}},
+    ...extra
+  }
+});
+
+function kpiHTML(kpis) {
+  return kpis.map(k=>`
+    <div class="kpi">
+      <div class="kpi-ac" style="background:${k.c}"></div>
+      <div class="kpi-lbl">${k.l}</div>
+      <div><span class="kpi-val">${k.v}</span><span class="kpi-unit">${k.u||''}</span></div>
+      <div class="kpi-sub">${k.s||''}</div>
+    </div>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// RENDER PRINCIPAL
+// ═══════════════════════════════════════════
+function renderAll() {
+  const af = {
+    run: fp(DB.run, period),
+    walk: fp(DB.walk, period),
+    workout: fp(DB.workout, period),
+    swim: fp(DB.swim, period),
+    padel: fp(DB.padel, period),
+  };
+  const all = [...af.run,...af.walk,...af.workout,...af.swim,...af.padel].sort((a,b)=>b.date-a.date);
+
+  renderGlobalKPI(all);
+
+  ['all','run','walk','workout','swim','padel'].forEach(s => {
+    const el = document.getElementById('panel-'+s);
+    if (el) { el.style.display='none'; el.classList.remove('active'); }
+  });
+  const active = document.getElementById('panel-'+sport);
+  if (active) { active.style.display='flex'; active.classList.add('active'); }
+
+  if (sport==='all') renderPanelAll(af, all);
+  else if (sport==='run') renderRun(af.run);
+  else if (sport==='walk') renderWalk(af.walk);
+  else if (sport==='workout') renderWorkout(af.workout);
+  else if (sport==='swim') renderSwim(af.swim);
+  else if (sport==='padel') renderPadel(af.padel);
+}
+
+// ═══════════════════════════════════════════
+// KPI GLOBAL
+// ═══════════════════════════════════════════
+function renderGlobalKPI(all) {
+  const td=sm(all,r=>r.dist), tt=sm(all,r=>r.movTime), tc=sm(all,r=>r.calories);
+  const te=sm(all.filter(r=>r.elevation),r=>r.elevation);
+  const ah=avg(all.filter(r=>r.hrAvg),r=>r.hrAvg);
+  document.getElementById('kpi-global').innerHTML = kpiHTML([
+    {l:'Actividades', v:all.length, u:'', s:`en ${period} días`, c:'#ffffff'},
+    {l:'Distancia', v:td.toFixed(1), u:'km', s:`${(td/period*7).toFixed(1)} km/sem`, c:'#ff5e1a'},
+    {l:'Tiempo activo', v:ft(Math.round(tt)), u:'', s:`${ft(Math.round(tt/(all.length||1)))} prom.`, c:'#9b6dff'},
+    {l:'Calorías', v:tc>999?(tc/1000).toFixed(1)+'k':Math.round(tc), u:'kcal', s:`${Math.round(tc/(period||1))} kcal/día`, c:'#ff4d72'},
+    {l:'FC media', v:ah?Math.round(ah):'–', u:'bpm', s:'promedio global', c:'#00c896'},
+    {l:'Desnivel', v:te>999?(te/1000).toFixed(1)+'k':Math.round(te), u:'m', s:'acumulado', c:'#f5c842'},
+  ]);
+}
+
+// ═══════════════════════════════════════════
+// PANEL ALL
+// ═══════════════════════════════════════════
+function renderPanelAll(af, all) {
+  const sp = ['run','walk','workout','swim','padel'];
+  const now = new Date();
+
+  // Volumen semanal
+  const nW = Math.min(Math.ceil(period/7), 24);
+  const wl=[], wd=[], wt=[];
+  for (let w=nW-1; w>=0; w--) {
+    const e=new Date(now); e.setDate(e.getDate()-w*7);
+    const s=new Date(e); s.setDate(s.getDate()-7);
+    wl.push(`S${nW-w}`);
+    const wk=[...af.run,...af.walk,...af.swim,...af.workout,...af.padel].filter(r=>r.date>=s&&r.date<e);
+    wd.push(+sm(wk,r=>r.dist).toFixed(1));
+    wt.push(Math.round(sm(wk,r=>r.movTime)));
+  }
+  dc('vol');
+  CH.vol = new Chart(document.getElementById('ch-vol').getContext('2d'), {
+    data:{labels:wl,datasets:[
+      {type:'bar',label:'km',data:wd,backgroundColor:'rgba(255,94,26,0.75)',borderRadius:3,yAxisID:'y'},
+      {type:'line',label:'min',data:wt,borderColor:'#9b6dff',backgroundColor:'rgba(155,109,255,0.1)',borderWidth:2,pointRadius:2,tension:.4,fill:true,yAxisID:'y2'}
+    ]},
+    options:{responsive:true,interaction:{mode:'index'},
+      plugins:{legend:{display:true,labels:{color:'#5a5a78',font:{size:10},boxWidth:8}}},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9}}},
+        y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9}},position:'left'},
+        y2:{grid:{display:false},ticks:{color:'#5a5a78',font:{size:9}},position:'right'}
+      }}
+  });
+
+  // Donut
+  dc('donut');
+  CH.donut = new Chart(document.getElementById('ch-donut').getContext('2d'), {
+    type:'doughnut',
+    data:{labels:sp.map(s=>SE[s]+' '+s),datasets:[{data:sp.map(s=>af[s].length),backgroundColor:sp.map(s=>SC[s]),borderWidth:2,borderColor:'#0f0f1a'}]},
+    options:{responsive:true,cutout:'63%',plugins:{legend:{position:'bottom',labels:{color:'#5a5a78',font:{size:11},boxWidth:9,padding:9}}}}
+  });
+
+  // Progresión
+  const days=[];
+  for (let i=period-1;i>=0;i--) { const d=new Date(now); d.setDate(d.getDate()-i); days.push(d); }
+  const step=Math.max(1,Math.floor(period/10));
+  const plbls=days.map((d,i)=>i%step===0?d.toLocaleDateString('es-ES',{day:'2-digit',month:'short'}):'');
+  const pdsets=['run','walk','swim'].map(s=>{
+    let c=0;
+    return {label:SE[s]+' '+s, data:days.map(d=>{
+      af[s].filter(r=>r.date.toDateString()===d.toDateString()).forEach(r=>c+=r.dist);
+      return +c.toFixed(1);
+    }), borderColor:SC[s], backgroundColor:SC[s]+'15', borderWidth:2, pointRadius:0, fill:true, tension:.4};
+  });
+  dc('prog');
+  CH.prog = new Chart(document.getElementById('ch-prog').getContext('2d'), {
+    type:'line', data:{labels:plbls,datasets:pdsets},
+    options:{responsive:true,plugins:{legend:{display:true,labels:{color:'#5a5a78',font:{size:10},boxWidth:8}}},
+      scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9},maxRotation:0}},
+              y:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9}}}}}
+  });
+
+  // Recientes
+  document.getElementById('recent-list').innerHTML = all.slice(0,7).map(a=>`
+    <div class="ri">
+      <div class="ri-ico" style="background:${SC[a.sport]}20;color:${SC[a.sport]}">${SE[a.sport]}</div>
+      <div><div class="ri-name">${a.name||a.sport}</div><div class="ri-date">${fd(a.date)}</div></div>
+      <div>
+        ${a.dist?`<div class="ri-dist" style="color:${SC[a.sport]}">${a.sport==='swim'?a.dist+'m':a.dist+'km'}</div>`:''}
+        <div class="ri-time">${ft(a.movTime)}</div>
+      </div>
+    </div>`).join('');
+
+  // Barras tiempo
+  const times=sp.map(s=>Math.round(sm(af[s],r=>r.movTime)));
+  const mxt=Math.max(...times,1);
+  document.getElementById('tbars').innerHTML=sp.map((s,i)=>`
+    <div class="tbar-row">
+      <div class="tbar-lbl"><span>${SE[s]} ${s}</span><span style="font-family:'Bebas Neue',sans-serif;color:${SC[s]};font-size:.9rem">${ft(times[i])}</span></div>
+      <div class="tbar-track"><div class="tbar-fill" style="width:${(times[i]/mxt*100).toFixed(1)}%;background:${SC[s]}"></div></div>
+    </div>`).join('');
+
+  // Racha
+  const allA=[...DB.run,...DB.walk,...DB.workout,...DB.swim,...DB.padel];
+  const actD=new Set(allA.map(a=>a.date.toDateString()));
+  let streak=0; const sd=new Date(now);
+  while(actD.has(sd.toDateString())){streak++;sd.setDate(sd.getDate()-1);}
+  document.getElementById('streak-val').textContent=streak;
+  const l30=[];
+  for(let i=29;i>=0;i--){const dd=new Date(now);dd.setDate(dd.getDate()-i);l30.push({dd,on:actD.has(dd.toDateString()),today:i===0});}
+  document.getElementById('sdays').innerHTML=l30.map(x=>`<div class="sd${x.on?' on':''}${x.today?' today':''}" title="${fd(x.dd)}"></div>`).join('');
+
+  // Heatmap
+  const byD={};
+  allA.forEach(a=>{const k=a.date.toDateString();byD[k]=(byD[k]||0)+1;});
+  const hs=new Date(now); hs.setFullYear(hs.getFullYear()-1);
+  while(hs.getDay()!==1) hs.setDate(hs.getDate()-1);
+  const hcs=[];const hms=[];let lm=-1;const hc=new Date(hs);
+  while(hc<=now){
+    const k=hc.toDateString();const n=byD[k]||0;
+    hcs.push({i:n===0?0:n<2?1:n<3?2:n<4?3:4,t:`${fd(hc)}: ${n} act.`});
+    const m=hc.getMonth();
+    if(m!==lm){hms.push({l:hc.toLocaleDateString('es-ES',{month:'short'}),c:Math.floor(hcs.length/7)});lm=m;}
+    hc.setDate(hc.getDate()+1);
+  }
+  document.getElementById('hm-g').innerHTML=hcs.map(c=>`<div class="hm-cell hm-${c.i}" title="${c.t}"></div>`).join('');
+  let mh='';
+  hms.forEach((m,i)=>{const span=((hms[i+1]?.c||Math.ceil(hcs.length/7))-m.c);mh+=`<span style="min-width:${span*16}px">${m.l}</span>`;});
+  document.getElementById('hm-m').innerHTML=mh;
+}
+
+// ═══════════════════════════════════════════
+// PANEL RUN
+// ═══════════════════════════════════════════
+function renderRun(runs) {
+  // Récords
+  const recs=[{min:4.8,max:5.3,l:'5K'},{min:9.5,max:10.6,l:'10K'},{min:20.5,max:22,l:'Media Maratón'},{min:41,max:43,l:'Maratón'}];
+  document.getElementById('run-recs').innerHTML=recs.map(({min,max,l})=>{
+    const cands=DB.run.filter(r=>r.dist>=min&&r.dist<=max);
+    const best=cands.length?cands.sort((a,b)=>(a.movTime/a.dist)-(b.movTime/b.dist))[0]:null;
+    return `<div class="rec"><div class="rec-ico">🏆</div>
+      <div class="rec-lbl">Récord ${l}</div>
+      <div class="rec-val" style="color:var(--run)">${best?ft(best.movTime):'Sin datos'}</div>
+      <div class="rec-sub">${best?`${fd(best.date)} · ${best.dist}km`:'Aún no tienes esta distancia'}</div>
+    </div>`;
+  }).join('');
+
+  // KPIs
+  const paces=runs.filter(r=>r.paceAvg).map(r=>pm(r.paceAvg)).filter(Boolean);
+  const ap=paces.length?paces.reduce((a,b)=>a+b)/paces.length:0;
+  const bp=paces.length?Math.min(...paces):0;
+  document.getElementById('kpi-run').innerHTML=kpiHTML([
+    {l:'Actividades',v:runs.length,u:'',s:'en el período',c:'#ff5e1a'},
+    {l:'Distancia media',v:runs.length?avg(runs,r=>r.dist).toFixed(1):'–',u:'km',s:`máx ${mx(runs,r=>r.dist).toFixed(1)} km`,c:'#ff5e1a'},
+    {l:'Ritmo medio',v:fp2(ap),u:'min/km',s:`mejor ${fp2(bp)}`,c:'#ff8040'},
+    {l:'PPM media',v:Math.round(avg(runs,r=>r.hrAvg))||'–',u:'bpm',s:`máx ${Math.round(mx(runs,r=>r.hrMax))} bpm`,c:'#ff4d72'},
+    {l:'Desnivel total',v:Math.round(sm(runs,r=>r.elevation)),u:'m',s:`avg ${Math.round(avg(runs,r=>r.elevation))} m`,c:'#f5c842'},
+    {l:'Calorías',v:Math.round(sm(runs,r=>r.calories)),u:'kcal',s:`avg ${Math.round(avg(runs,r=>r.calories))} kcal`,c:'#ff5e1a'},
+  ]);
+
+  const rec=runs.slice(0,20).reverse();
+  dc('rp');
+  CH.rp=new Chart(document.getElementById('ch-rp').getContext('2d'),{type:'line',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>pm(r.paceAvg)),borderColor:'#ff5e1a',backgroundColor:'rgba(255,94,26,0.1)',borderWidth:2,pointRadius:2,tension:.4,fill:true}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9},maxRotation:35}},y:{reverse:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9},callback:v=>fp2(v)}}}}});
+  dc('rd');
+  CH.rd=new Chart(document.getElementById('ch-rd').getContext('2d'),{type:'bar',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.dist),backgroundColor:'rgba(255,94,26,0.7)',borderRadius:3}]},options:baseOpts()});
+
+  document.getElementById('run-tb').innerHTML=runs.slice(0,20).map(r=>`<tr>
+    <td>${fd(r.date)}</td><td>${r.name}</td>
+    <td style="color:var(--run);font-weight:500">${r.dist}km</td>
+    <td>${ft(r.movTime)}</td><td>${r.paceAvg||'–'}</td>
+    <td>${r.hrAvg||'–'}</td><td>${r.elevation||'–'}m</td>
+    <td>${r.calories||'–'}</td><td>${r.suffer||'–'}</td></tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// PANEL WALK
+// ═══════════════════════════════════════════
+function renderWalk(walks) {
+  document.getElementById('kpi-walk').innerHTML=kpiHTML([
+    {l:'Actividades',v:walks.length,u:'',s:'en el período',c:'#00d4c8'},
+    {l:'Distancia media',v:walks.length?avg(walks,r=>r.dist).toFixed(1):'–',u:'km',s:`total ${sm(walks,r=>r.dist).toFixed(1)} km`,c:'#00d4c8'},
+    {l:'Tiempo total',v:ft(Math.round(sm(walks,r=>r.movTime))),u:'',s:`avg ${ft(Math.round(avg(walks,r=>r.movTime)))}`,c:'#00b8b0'},
+    {l:'PPM media',v:Math.round(avg(walks,r=>r.hrAvg))||'–',u:'bpm',s:`máx ${Math.round(mx(walks,r=>r.hrMax))} bpm`,c:'#ff4d72'},
+    {l:'Desnivel total',v:Math.round(sm(walks,r=>r.elevation))||'–',u:'m',s:'acumulado',c:'#f5c842'},
+    {l:'Calorías',v:Math.round(sm(walks,r=>r.calories)),u:'kcal',s:`avg ${Math.round(avg(walks,r=>r.calories))} kcal`,c:'#00d4c8'},
+  ]);
+  const rec=walks.slice(0,20).reverse();
+  dc('wd');
+  CH.wd=new Chart(document.getElementById('ch-wd').getContext('2d'),{type:'bar',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.dist),backgroundColor:'rgba(0,212,200,0.65)',borderRadius:3}]},options:baseOpts()});
+  let cc=0; dc('wc');
+  CH.wc=new Chart(document.getElementById('ch-wc').getContext('2d'),{type:'line',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>{cc+=r.calories;return Math.round(cc);}),borderColor:'#00d4c8',backgroundColor:'rgba(0,212,200,0.1)',borderWidth:2,pointRadius:2,tension:.4,fill:true}]},options:baseOpts()});
+  document.getElementById('walk-tb').innerHTML=walks.slice(0,20).map(r=>`<tr>
+    <td>${fd(r.date)}</td><td>${r.name}</td>
+    <td style="color:var(--walk);font-weight:500">${r.dist}km</td>
+    <td>${ft(r.movTime)}</td><td>${r.speedAvg||'–'}</td>
+    <td>${r.hrAvg||'–'}</td><td>${r.elevation||'–'}m</td><td>${r.calories||'–'}</td></tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// PANEL WORKOUT
+// ═══════════════════════════════════════════
+function renderWorkout(wos) {
+  document.getElementById('kpi-workout').innerHTML=kpiHTML([
+    {l:'Sesiones',v:wos.length,u:'',s:'en el período',c:'#9b6dff'},
+    {l:'Tiempo total',v:ft(Math.round(sm(wos,r=>r.movTime))),u:'',s:`avg ${ft(Math.round(avg(wos,r=>r.movTime)))}`,c:'#9b6dff'},
+    {l:'Sesión más larga',v:ft(mx(wos,r=>r.movTime)),u:'',s:'récord',c:'#7c4dff'},
+    {l:'PPM media',v:Math.round(avg(wos,r=>r.hrAvg))||'–',u:'bpm',s:`máx ${Math.round(mx(wos,r=>r.hrMax))} bpm`,c:'#ff4d72'},
+    {l:'Calorías totales',v:Math.round(sm(wos,r=>r.calories)),u:'kcal',s:`avg ${Math.round(avg(wos,r=>r.calories))} kcal`,c:'#9b6dff'},
+    {l:'Suffer avg',v:Math.round(avg(wos,r=>r.suffer))||'–',u:'',s:`máx ${Math.round(mx(wos,r=>r.suffer))}`,c:'#f5c842'},
+  ]);
+  const rec=wos.slice(0,20).reverse();
+  dc('wod');
+  CH.wod=new Chart(document.getElementById('ch-wod').getContext('2d'),{type:'bar',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.movTime),backgroundColor:'rgba(155,109,255,0.65)',borderRadius:3}]},options:baseOpts()});
+  dc('wos');
+  CH.wos=new Chart(document.getElementById('ch-wos').getContext('2d'),{type:'bar',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.suffer),backgroundColor:'rgba(245,200,66,0.6)',borderRadius:3}]},options:baseOpts()});
+  document.getElementById('wo-tb').innerHTML=wos.slice(0,20).map(r=>`<tr>
+    <td>${fd(r.date)}</td><td>${r.name}</td>
+    <td style="color:var(--workout);font-weight:500">${ft(r.movTime)}</td>
+    <td>${r.hrAvg||'–'}</td><td>${r.hrMax||'–'}</td>
+    <td>${r.calories||'–'}</td><td>${r.suffer||'–'}</td></tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// PANEL SWIM
+// ═══════════════════════════════════════════
+function renderSwim(swims) {
+  document.getElementById('kpi-swim').innerHTML=kpiHTML([
+    {l:'Sesiones',v:swims.length,u:'',s:'en el período',c:'#00c896'},
+    {l:'Distancia media',v:swims.length?Math.round(avg(swims,r=>r.dist)):'–',u:'m',s:`total ${Math.round(sm(swims,r=>r.dist))} m`,c:'#00c896'},
+    {l:'Tiempo total',v:ft(Math.round(sm(swims,r=>r.movTime))),u:'',s:`avg ${ft(Math.round(avg(swims,r=>r.movTime)))}`,c:'#00a87a'},
+    {l:'PPM media',v:Math.round(avg(swims,r=>r.hrAvg))||'–',u:'bpm',s:`máx ${Math.round(mx(swims,r=>r.hrMax))} bpm`,c:'#ff4d72'},
+    {l:'Brazadas/min',v:Math.round(avg(swims,r=>r.cadence))||'–',u:'',s:`máx ${Math.round(mx(swims,r=>r.cadence))}`,c:'#00c896'},
+    {l:'Calorías',v:Math.round(sm(swims,r=>r.calories)),u:'kcal',s:`avg ${Math.round(avg(swims,r=>r.calories))} kcal`,c:'#00c896'},
+  ]);
+  const rec=swims.slice(0,20).reverse();
+  dc('swd');
+  CH.swd=new Chart(document.getElementById('ch-swd').getContext('2d'),{type:'bar',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.dist),backgroundColor:'rgba(0,200,150,0.65)',borderRadius:3}]},options:baseOpts()});
+  const pd=rec.map(r=>{const m=r.paceAvg.match(/(\d+\.?\d*)/);return m?parseFloat(m[1]):null;});
+  dc('swp');
+  CH.swp=new Chart(document.getElementById('ch-swp').getContext('2d'),{type:'line',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:pd,borderColor:'#00c896',backgroundColor:'rgba(0,200,150,0.1)',borderWidth:2,pointRadius:2,tension:.4,fill:true}]},options:{responsive:true,plugins:{legend:{display:false}},scales:{x:{grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:9},maxRotation:35}},y:{reverse:true,grid:{color:'rgba(255,255,255,0.04)'},ticks:{color:'#5a5a78',font:{size:10}}}}}});
+  document.getElementById('sw-tb').innerHTML=swims.slice(0,20).map(r=>`<tr>
+    <td>${fd(r.date)}</td><td>${r.name}</td>
+    <td style="color:var(--swim);font-weight:500">${r.dist}m</td>
+    <td>${ft(r.movTime)}</td><td>${r.paceAvg||'–'}</td>
+    <td>${r.cadence||'–'}</td><td>${r.calories||'–'}</td></tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// PANEL PADEL
+// ═══════════════════════════════════════════
+function renderPadel(padels) {
+  document.getElementById('kpi-padel').innerHTML=kpiHTML([
+    {l:'Partidos',v:padels.length,u:'',s:'en el período',c:'#ff4d72'},
+    {l:'Tiempo total',v:ft(Math.round(sm(padels,r=>r.movTime))),u:'',s:`avg ${ft(Math.round(avg(padels,r=>r.movTime)))}`,c:'#ff4d72'},
+    {l:'Partido más largo',v:ft(mx(padels,r=>r.movTime)),u:'',s:'récord duración',c:'#e03060'},
+    {l:'PPM media',v:Math.round(avg(padels,r=>r.hrAvg))||'–',u:'bpm',s:`máx ${Math.round(mx(padels,r=>r.hrMax))} bpm`,c:'#ff4d72'},
+    {l:'Calorías totales',v:Math.round(sm(padels,r=>r.calories)),u:'kcal',s:`avg ${Math.round(avg(padels,r=>r.calories))} kcal`,c:'#ff4d72'},
+    {l:'Suffer avg',v:Math.round(avg(padels,r=>r.suffer))||'–',u:'',s:`máx ${Math.round(mx(padels,r=>r.suffer))}`,c:'#f5c842'},
+  ]);
+  const rec=padels.slice(0,20).reverse();
+  dc('pdd');
+  CH.pdd=new Chart(document.getElementById('ch-pdd').getContext('2d'),{type:'bar',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.movTime),backgroundColor:'rgba(255,77,114,0.65)',borderRadius:3}]},options:baseOpts()});
+  dc('pdh');
+  CH.pdh=new Chart(document.getElementById('ch-pdh').getContext('2d'),{type:'line',data:{labels:rec.map(r=>fd(r.date)),datasets:[{data:rec.map(r=>r.hrAvg),borderColor:'#ff4d72',backgroundColor:'rgba(255,77,114,0.1)',borderWidth:2,pointRadius:2,tension:.4,fill:true}]},options:baseOpts()});
+  document.getElementById('pd-tb').innerHTML=padels.slice(0,20).map(r=>`<tr>
+    <td>${fd(r.date)}</td><td>${r.name}</td>
+    <td style="color:var(--padel);font-weight:500">${ft(r.movTime)}</td>
+    <td>${r.hrAvg||'–'}</td><td>${r.hrMax||'–'}</td>
+    <td>${r.calories||'–'}</td><td>${r.suffer||'–'}</td></tr>`).join('');
+}
+
+// ═══════════════════════════════════════════
+// FILTROS
+// ═══════════════════════════════════════════
+document.getElementById('pp').addEventListener('click', e => {
+  const p = e.target.closest('[data-period]'); if (!p) return;
+  document.querySelectorAll('#pp .pill').forEach(x=>x.classList.remove('ap'));
+  p.classList.add('ap'); period=parseInt(p.dataset.period); renderAll();
+});
+document.getElementById('sp').addEventListener('click', e => {
+  const p = e.target.closest('[data-sport]'); if (!p) return;
+  document.querySelectorAll('#sp .pill').forEach(x=>x.classList.remove('as'));
+  p.classList.add('as'); sport=p.dataset.sport; renderAll();
+});
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+Chart.defaults.font.family = 'Sora';
+Chart.defaults.color = '#5a5a78';
+Chart.defaults.borderColor = 'rgba(255,255,255,0.05)';
+loadData();
+</script>
+</body>
+</html>
